@@ -43,5 +43,4 @@ jobs:
           # Example: set 1 year cache on hashed assets under /assets/
           azcopy set-properties \
             "https://${ACCOUNT}.blob.core.windows.net/${CONTAINER}/assets?${SAS}" \
-            --recursive \
-            --cache-control "public, max-age=31536000, immutable"
+            --recursive
