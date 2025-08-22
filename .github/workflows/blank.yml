@@ -1,0 +1,47 @@
+name: Upload to Azure Storage with AzCopy (SAS)
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'site/**'   # only run if files in site/ changed
+  workflow_dispatch:
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install AzCopy
+        run: |
+          curl -sL https://aka.ms/downloadazcopy-v10-linux -o azcopy.tar.gz
+          tar -xzf azcopy.tar.gz
+          AZCOPY_BIN="$(find . -type f -name azcopy | head -n 1)"
+          sudo mv "$AZCOPY_BIN" /usr/local/bin/azcopy
+          azcopy --version
+
+      - name: Upload with AzCopy (SAS)
+        env:
+          ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
+          CONTAINER: ${{ secrets.AZURE_STORAGE_CONTAINER }}
+          SAS: ${{ secrets.AZURE_STORAGE_SAS }}
+        run: |
+          # Example: upload everything under ./site to the container root
+          azcopy copy "site/*" "https://${ACCOUNT}.blob.core.windows.net/${CONTAINER}?${SAS}" \
+            --recursive=true \
+            --overwrite=ifSourceNewer
+
+      - name: (Optional) Set cache headers for static assets
+        if: always()
+        env:
+          ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
+          CONTAINER: ${{ secrets.AZURE_STORAGE_CONTAINER }}
+          SAS: ${{ secrets.AZURE_STORAGE_SAS }}
+        run: |
+          # Example: set 1 year cache on hashed assets under /assets/
+          azcopy set-properties \
+            "https://${ACCOUNT}.blob.core.windows.net/${CONTAINER}/assets?${SAS}" \
+            --recursive \
+            --cache-control "public, max-age=31536000, immutable"
